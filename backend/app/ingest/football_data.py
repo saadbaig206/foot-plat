@@ -1,7 +1,7 @@
 """Football-data.org data integration service.
 Handles ingestion of fixtures, results, standings, top scorers, and team logos
 with rate-limiting (~10 requests/min), exponential retries, response caching,
-and last-updated tracking in ingestion_runs.
+and high-speed bulk database upserts for cloud databases (Neon DB).
 """
 from datetime import datetime, timezone
 import json
@@ -59,7 +59,6 @@ class FootballDataClient:
         elapsed = time.time() - self.last_request_time
         if elapsed < self.min_interval:
             sleep_time = self.min_interval - elapsed
-            logger.info(f"Rate limiting: sleeping {sleep_time:.2f}s")
             time.sleep(sleep_time)
         self.last_request_time = time.time()
 
@@ -82,14 +81,12 @@ class FootballDataClient:
                     time.sleep(retry_after + random.uniform(1, 3))
                 elif res.status_code in (500, 502, 503, 504):
                     backoff = (2 ** attempt) * 2 + random.uniform(0.5, 1.5)
-                    logger.warning(f"HTTP {res.status_code}. Retrying in {backoff:.1f}s...")
                     time.sleep(backoff)
                 else:
                     logger.error(f"football-data.org error {res.status_code}: {res.text}")
                     res.raise_for_status()
             except httpx.RequestError as e:
                 backoff = (2 ** attempt) * 2 + random.uniform(0.5, 1.5)
-                logger.warning(f"Network error on attempt {attempt+1}: {e}. Retrying in {backoff:.1f}s...")
                 time.sleep(backoff)
 
         raise RuntimeError(f"Failed to fetch {url} after {max_retries} attempts.")
@@ -99,7 +96,6 @@ class FootballDataClient:
 
 
 def _ensure_league(competition_code: str) -> dict:
-    """Ensures league exists in DB, automatically seeding metadata if missing."""
     our_code = COMPETITION_MAP.get(competition_code, competition_code)
     row = query_one("SELECT id, country FROM leagues WHERE code = %s", (our_code,))
     if row:
@@ -123,43 +119,13 @@ def _ensure_league(competition_code: str) -> dict:
     return query_one("SELECT id, country FROM leagues WHERE code = %s", (code,))
 
 
-def _ensure_team(name: str, country: str | None, logo_url: str | None = None, ext_id: int | None = None) -> int:
-    """Gets or creates a team and updates logo if provided."""
-    row = query_one("SELECT id, logo_url FROM teams WHERE name = %s AND (country = %s OR country IS NULL)", (name, country))
-    ext_json = json.dumps({"football_data_id": ext_id}) if ext_id else "{}"
-    if row:
-        tid = row["id"]
-        if logo_url and (not row["logo_url"] or row["logo_url"] != logo_url):
-            execute("UPDATE teams SET logo_url = %s, last_updated = now() WHERE id = %s", (logo_url, tid))
-        return tid
-
-    new_row = query_one(
-        """INSERT INTO teams (name, country, logo_url, external_ids, source, last_updated)
-           VALUES (%s, %s, %s, %s::jsonb, %s, now())
-           ON CONFLICT (name, country) DO UPDATE SET logo_url = coalesce(EXCLUDED.logo_url, teams.logo_url), last_updated = now()
-           RETURNING id""",
-        (name, country, logo_url, ext_json, SRC)
-    )
-    return new_row["id"] if new_row else query_one("SELECT id FROM teams WHERE name = %s", (name,))["id"]
-
-
-def _get_or_create_season(match_date: datetime.date) -> int:
-    y = match_date.year if match_date.month >= 7 else match_date.year - 1
-    label = f"{y}/{str(y+1)[2:]}"
-    row = query_one("SELECT id FROM seasons WHERE label = %s", (label,))
-    if row:
-        return row["id"]
-    new_s = query_one(
-        "INSERT INTO seasons (label, start_date, end_date) VALUES (%s, %s, %s) ON CONFLICT (label) DO NOTHING RETURNING id",
-        (label, f"{y}-07-01", f"{y+1}-06-30")
-    )
-    if new_s:
-        return new_s["id"]
-    return query_one("SELECT id FROM seasons WHERE label = %s", (label,))["id"]
+def season_label_for_date(d: datetime.date) -> str:
+    y = d.year if d.month >= 7 else d.year - 1
+    return f"{y}/{str(y+1)[2:]}"
 
 
 def ingest_competition(competition_code: str, client: FootballDataClient | None = None) -> dict:
-    """Ingests fixtures, results, standings, and scorers for a competition."""
+    """Ingests fixtures, results, standings, and scorers in fast bulk transactions."""
     if client is None:
         client = FootballDataClient()
 
@@ -167,16 +133,70 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
     league_id = league_row["id"]
     country = league_row["country"]
 
-    run_id = query_one("INSERT INTO ingestion_runs (source) VALUES (%s) RETURNING id", (f"{SRC}:{competition_code}",))["id"]
+    run_row = query_one("INSERT INTO ingestion_runs (source) VALUES (%s) RETURNING id", (f"{SRC}:{competition_code}",))
+    run_id = run_row["id"] if run_row else 1
 
     total_read = 0
     total_written = 0
 
     try:
-        # 1. Matches & Fixtures
+        # Step 1: Fetch Matches & Fixtures
+        print(f"  [1/3] Fetching {competition_code} match schedule & results from API...")
         matches_data = client.get(f"/competitions/{competition_code}/matches")
         matches_list = matches_data.get("matches", [])
         total_read += len(matches_list)
+
+        # Bulk upsert all seasons found
+        all_season_labels = set()
+        teams_to_upsert = {}
+
+        for m in matches_list:
+            utc_str = m.get("utcDate")
+            if not utc_str:
+                continue
+            m_date = datetime.fromisoformat(utc_str.replace("Z", "+00:00")).date()
+            all_season_labels.add(season_label_for_date(m_date))
+
+            ht = m.get("homeTeam", {})
+            at = m.get("awayTeam", {})
+            if ht.get("name"):
+                teams_to_upsert[ht["name"]] = (ht.get("crest"), ht.get("id"))
+            if at.get("name"):
+                teams_to_upsert[at["name"]] = (at.get("crest"), at.get("id"))
+
+        # Batch upsert seasons
+        season_rows = []
+        for slab in all_season_labels:
+            y = int(slab[:4])
+            season_rows.append((slab, f"{y}-07-01", f"{y+1}-06-30"))
+        executemany("""
+            INSERT INTO seasons (label, start_date, end_date)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (label) DO NOTHING
+        """, season_rows)
+        season_map = {r["label"]: r["id"] for r in query("SELECT label, id FROM seasons")}
+
+        # Batch upsert teams
+        team_rows = []
+        for tname, (crest, ext_id) in teams_to_upsert.items():
+            ext_json = json.dumps({"football_data_id": ext_id}) if ext_id else "{}"
+            team_rows.append((tname, country, crest, ext_json, SRC))
+        executemany("""
+            INSERT INTO teams (name, country, logo_url, external_ids, source, last_updated)
+            VALUES (%s, %s, %s, %s::jsonb, %s, now())
+            ON CONFLICT (name, country) DO UPDATE SET
+                logo_url = coalesce(EXCLUDED.logo_url, teams.logo_url),
+                last_updated = now()
+        """, team_rows)
+        team_map = {r["name"]: r["id"] for r in query("SELECT name, id FROM teams WHERE country = %s OR country IS NULL", (country,))}
+
+        # Batch upsert all matches
+        match_rows = []
+        status_map = {
+            "FINISHED": "finished", "TIMED": "scheduled", "SCHEDULED": "scheduled",
+            "IN_PLAY": "live", "PAUSED": "live", "POSTPONED": "postponed",
+            "CANCELLED": "cancelled", "SUSPENDED": "postponed"
+        }
 
         for m in matches_list:
             utc_str = m.get("utcDate")
@@ -184,31 +204,16 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
                 continue
             utc_dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
             m_date = utc_dt.date()
-            season_id = _get_or_create_season(m_date)
+            sid = season_map.get(season_label_for_date(m_date))
 
-            home_info = m.get("homeTeam", {})
-            away_info = m.get("awayTeam", {})
-            h_name = home_info.get("name")
-            a_name = away_info.get("name")
-            if not h_name or not a_name:
+            ht_name = m.get("homeTeam", {}).get("name")
+            at_name = m.get("awayTeam", {}).get("name")
+            h_id = team_map.get(ht_name)
+            a_id = team_map.get(at_name)
+            if not h_id or not a_id:
                 continue
 
-            h_id = _ensure_team(h_name, country, home_info.get("crest"), home_info.get("id"))
-            a_id = _ensure_team(a_name, country, away_info.get("crest"), away_info.get("id"))
-
-            status_raw = m.get("status", "SCHEDULED").upper()
-            status_map = {
-                "FINISHED": "finished",
-                "TIMED": "scheduled",
-                "SCHEDULED": "scheduled",
-                "IN_PLAY": "live",
-                "PAUSED": "live",
-                "POSTPONED": "postponed",
-                "CANCELLED": "cancelled",
-                "SUSPENDED": "postponed"
-            }
-            status = status_map.get(status_raw, "scheduled")
-
+            status = status_map.get(m.get("status", "SCHEDULED").upper(), "scheduled")
             score = m.get("score", {})
             full_time = score.get("fullTime", {})
             half_time = score.get("halfTime", {})
@@ -219,78 +224,80 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
 
             res = None
             if h_goals is not None and a_goals is not None:
-                if h_goals > a_goals:
-                    res = "H"
-                elif a_goals > h_goals:
-                    res = "A"
-                else:
-                    res = "D"
+                res = "H" if h_goals > a_goals else ("A" if a_goals > h_goals else "D")
 
-            # Upsert match: in-place cell update on conflict
-            execute("""
-                INSERT INTO matches (league_id, season_id, match_date, kickoff_utc, home_team_id, away_team_id,
-                                    status, home_goals, away_goals, ht_home_goals, ht_away_goals, result, source, last_updated)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
-                ON CONFLICT (league_id, match_date, home_team_id, away_team_id) DO UPDATE SET
-                    kickoff_utc = coalesce(EXCLUDED.kickoff_utc, matches.kickoff_utc),
-                    status = EXCLUDED.status,
-                    home_goals = coalesce(EXCLUDED.home_goals, matches.home_goals),
-                    away_goals = coalesce(EXCLUDED.away_goals, matches.away_goals),
-                    ht_home_goals = coalesce(EXCLUDED.ht_home_goals, matches.ht_home_goals),
-                    ht_away_goals = coalesce(EXCLUDED.ht_away_goals, matches.ht_away_goals),
-                    result = coalesce(EXCLUDED.result, matches.result),
-                    last_updated = now()
-            """, (league_id, season_id, m_date, utc_dt, h_id, a_id, status, h_goals, a_goals, ht_h_goals, ht_a_goals, res, SRC))
-            total_written += 1
+            match_rows.append((
+                league_id, sid, m_date, utc_dt, h_id, a_id, status,
+                h_goals, a_goals, ht_h_goals, ht_a_goals, res, SRC
+            ))
 
-        # 2. Standings
+        print(f"  Writing {len(match_rows)} matches in bulk to database...")
+        executemany("""
+            INSERT INTO matches (league_id, season_id, match_date, kickoff_utc, home_team_id, away_team_id,
+                                status, home_goals, away_goals, ht_home_goals, ht_away_goals, result, source, last_updated)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+            ON CONFLICT (league_id, match_date, home_team_id, away_team_id) DO UPDATE SET
+                kickoff_utc = coalesce(EXCLUDED.kickoff_utc, matches.kickoff_utc),
+                status = EXCLUDED.status,
+                home_goals = coalesce(EXCLUDED.home_goals, matches.home_goals),
+                away_goals = coalesce(EXCLUDED.away_goals, matches.away_goals),
+                ht_home_goals = coalesce(EXCLUDED.ht_home_goals, matches.ht_home_goals),
+                ht_away_goals = coalesce(EXCLUDED.ht_away_goals, matches.ht_away_goals),
+                result = coalesce(EXCLUDED.result, matches.result),
+                last_updated = now()
+        """, match_rows)
+        total_written += len(match_rows)
+
+        # Step 2: Standings
+        print(f"  [2/3] Fetching league standings from API...")
         try:
             standings_data = client.get(f"/competitions/{competition_code}/standings")
+            curr_season = query_one("SELECT id FROM seasons ORDER BY end_date DESC LIMIT 1")
+            curr_sid = curr_season["id"] if curr_season else 1
+            standings_rows = []
+
             for table_group in standings_data.get("standings", []):
                 if table_group.get("type") == "TOTAL":
                     for row in table_group.get("table", []):
-                        t_info = row.get("team", {})
-                        t_name = t_info.get("name")
-                        if not t_name:
+                        tname = row.get("team", {}).get("name")
+                        tid = team_map.get(tname)
+                        if not tid:
                             continue
-                        tid = _ensure_team(t_name, country, t_info.get("crest"), t_info.get("id"))
-                        curr_season = query_one("SELECT id FROM seasons ORDER BY end_date DESC LIMIT 1")
-                        curr_sid = curr_season["id"] if curr_season else 1
+                        standings_rows.append((
+                            league_id, curr_sid, tid, row.get("position"), row.get("playedGames"),
+                            row.get("won"), row.get("draw"), row.get("lost"),
+                            row.get("goalsFor"), row.get("goalsAgainst"), row.get("points"),
+                            row.get("form"), SRC
+                        ))
 
-                        execute("""
-                            INSERT INTO league_standings (league_id, season_id, team_id, position, played, won, drawn, lost,
-                                                         goals_for, goals_against, points, form, source, last_updated)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
-                            ON CONFLICT (league_id, season_id, team_id) DO UPDATE SET
-                                position = EXCLUDED.position,
-                                played = EXCLUDED.played,
-                                won = EXCLUDED.won,
-                                drawn = EXCLUDED.drawn,
-                                lost = EXCLUDED.lost,
-                                goals_for = EXCLUDED.goals_for,
-                                goals_against = EXCLUDED.goals_against,
-                                points = EXCLUDED.points,
-                                form = EXCLUDED.form,
-                                last_updated = now()
-                        """, (league_id, curr_sid, tid, row.get("position"), row.get("playedGames"),
-                              row.get("won"), row.get("draw"), row.get("lost"),
-                              row.get("goalsFor"), row.get("goalsAgainst"), row.get("points"),
-                              row.get("form"), SRC))
+            if standings_rows:
+                executemany("""
+                    INSERT INTO league_standings (league_id, season_id, team_id, position, played, won, drawn, lost,
+                                                 goals_for, goals_against, points, form, source, last_updated)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+                    ON CONFLICT (league_id, season_id, team_id) DO UPDATE SET
+                        position = EXCLUDED.position, played = EXCLUDED.played,
+                        won = EXCLUDED.won, drawn = EXCLUDED.drawn, lost = EXCLUDED.lost,
+                        goals_for = EXCLUDED.goals_for, goals_against = EXCLUDED.goals_against,
+                        points = EXCLUDED.points, form = EXCLUDED.form, last_updated = now()
+                """, standings_rows)
         except Exception as e:
-            logger.warning(f"Standings ingest failed for {competition_code}: {e}")
+            logger.warning(f"Standings ingest skipped: {e}")
 
-        # 3. Top Scorers & Player Profiles
+        # Step 3: Top Scorers
+        print(f"  [3/3] Fetching top scorers and player profiles...")
         try:
             scorers_data = client.get(f"/competitions/{competition_code}/scorers")
             curr_season = query_one("SELECT id FROM seasons ORDER BY end_date DESC LIMIT 1")
             curr_sid = curr_season["id"] if curr_season else 1
+
             for sc in scorers_data.get("scorers", []):
                 p_info = sc.get("player", {})
                 t_info = sc.get("team", {})
                 p_name = p_info.get("name")
                 if not p_name:
                     continue
-                tid = _ensure_team(t_info.get("name", "Unknown"), country, t_info.get("crest")) if t_info else None
+                tid = team_map.get(t_info.get("name"))
                 ext_p = json.dumps({"football_data_id": p_info.get("id")})
 
                 p_row = query_one(
@@ -316,9 +323,9 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
                         last_updated = now()
                 """, (pid, league_id, curr_sid, tid, sc.get("playedMatches"), sc.get("goals"), sc.get("assists"), SRC))
         except Exception as e:
-            logger.warning(f"Scorers ingest failed for {competition_code}: {e}")
+            logger.warning(f"Scorers ingest skipped: {e}")
 
-        # Mark run OK
+        # Mark run finished
         execute("UPDATE ingestion_runs SET status = 'ok', finished_at = now(), rows_read = %s, rows_written = %s WHERE id = %s",
                 (total_read, total_written, run_id))
 

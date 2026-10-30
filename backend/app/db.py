@@ -19,6 +19,7 @@ except ImportError:
 
 _pool = None
 _backend = None  # 'psycopg', 'psycopg2', or 'sqlite3'
+_last_url = None
 
 SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS leagues (
@@ -243,14 +244,17 @@ def _init_pool():
 
 
 def get_pool():
-    global _pool
-    if _pool is None:
+    global _pool, _last_url
+    current_url = get_settings().database_url
+    if _pool is None or _last_url != current_url:
+        close_pool()
+        _last_url = current_url
         _init_pool()
     return _pool
 
 
 def close_pool() -> None:
-    global _pool, _backend
+    global _pool, _backend, _last_url
     if _pool is not None:
         if _backend == "psycopg" and hasattr(_pool, "close"):
             _pool.close()
@@ -258,6 +262,7 @@ def close_pool() -> None:
             _pool.closeall()
         _pool = None
         _backend = None
+        _last_url = None
 
 
 @contextmanager
@@ -268,7 +273,14 @@ def conn():
         with pool.connection() as c:
             yield c
     elif _backend == "psycopg2":
-        c = pool.getconn()
+        try:
+            c = pool.getconn()
+            if getattr(c, "closed", 0) != 0:
+                pool.putconn(c, close=True)
+                c = pool.getconn()
+        except Exception:
+            _init_pool()
+            c = _pool.getconn()
         try:
             yield c
             c.commit()
@@ -276,7 +288,8 @@ def conn():
             c.rollback()
             raise
         finally:
-            pool.putconn(c)
+            if not getattr(c, "closed", 0):
+                pool.putconn(c)
     elif _backend == "sqlite3":
         import sqlite3
         c = sqlite3.connect(pool)

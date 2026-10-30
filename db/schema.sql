@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE TABLE IF NOT EXISTS players (
   id            SERIAL PRIMARY KEY,
-  name          TEXT NOT NULL,
+  name          TEXT NOT NULL UNIQUE,
   nationality   TEXT,
   birth_date    DATE,
   position      TEXT,

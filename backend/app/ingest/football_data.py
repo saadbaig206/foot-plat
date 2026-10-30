@@ -200,13 +200,13 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
                                     status, home_goals, away_goals, ht_home_goals, ht_away_goals, result, source, last_updated)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
                 ON CONFLICT (league_id, match_date, home_team_id, away_team_id) DO UPDATE SET
-                    kickoff_utc = EXCLUDED.kickoff_utc,
+                    kickoff_utc = coalesce(EXCLUDED.kickoff_utc, matches.kickoff_utc),
                     status = EXCLUDED.status,
-                    home_goals = EXCLUDED.home_goals,
-                    away_goals = EXCLUDED.away_goals,
-                    ht_home_goals = EXCLUDED.ht_home_goals,
-                    ht_away_goals = EXCLUDED.ht_away_goals,
-                    result = EXCLUDED.result,
+                    home_goals = coalesce(EXCLUDED.home_goals, matches.home_goals),
+                    away_goals = coalesce(EXCLUDED.away_goals, matches.away_goals),
+                    ht_home_goals = coalesce(EXCLUDED.ht_home_goals, matches.ht_home_goals),
+                    ht_away_goals = coalesce(EXCLUDED.ht_away_goals, matches.ht_away_goals),
+                    result = coalesce(EXCLUDED.result, matches.result),
                     last_updated = now()
             """, (league_id, season_id, m_date, utc_dt, h_id, a_id, status, h_goals, a_goals, ht_h_goals, ht_a_goals, res, SRC))
             total_written += 1

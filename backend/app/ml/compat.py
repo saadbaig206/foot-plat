@@ -38,3 +38,4 @@ def apply_numpy_compat():
             p.__generator_ctor = compat_generator_ctor
     except Exception:
         pass
+

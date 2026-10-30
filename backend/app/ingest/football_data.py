@@ -296,3 +296,4 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
         execute("UPDATE ingestion_runs SET status = 'failed', finished_at = now(), error = %s WHERE id = %s",
                 (str(e), run_id))
         raise
+

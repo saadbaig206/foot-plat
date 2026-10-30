@@ -222,3 +222,4 @@ The frontend uses the Tableau Embedding API v3:
 ```
 
 When a user selects a league or season in the PitchsideIQ navigation, `<viz-filter>` tags dynamically synchronize the Tableau worksheets without reloading the iframe.
+

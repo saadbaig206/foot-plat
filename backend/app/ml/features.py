@@ -24,3 +24,4 @@ def build_features(raw: pd.DataFrame, division_map: dict) -> pd.DataFrame:
         d["ImpProb" + k] = 1.0 / d["Odd" + k].where(d["Odd" + k] > 0)
     d["OddsMargin"] = d.ImpProbHome + d.ImpProbDraw + d.ImpProbAway - 1
     return d[FEATURES]
+

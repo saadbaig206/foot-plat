@@ -183,3 +183,4 @@ def compute_league_standings(league_id: int | None = None, season_id: int | None
         "standings_rows": len(standings_rows),
         "performance_rows": len(perf_rows)
     }
+

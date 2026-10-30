@@ -44,7 +44,11 @@ def main():
             WHERE table_schema = 'public'
             ORDER BY table_name;
         """)
-        tables = [r[0] for r in cur.fetchall()]
+        rows = cur.fetchall()
+        tables = [
+            r["table_name"] if hasattr(r, "keys") or isinstance(r, dict) else r[0]
+            for r in rows
+        ]
         cur.close()
 
     print(f"Database initialized successfully with {len(tables)} tables:")

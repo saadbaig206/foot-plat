@@ -1,5 +1,6 @@
 import { api, type PlayerRanking } from "@/lib/api";
 import { Card, EmptyState, ErrorState, PageHeader, Stat } from "@/components/ui";
+import ClubCrest from "@/components/ClubCrest";
 import { Award, Flame, Medal, Trophy, User } from "lucide-react";
 
 export default async function RankingsPage() {
@@ -66,7 +67,12 @@ export default async function RankingsPage() {
                          p.rank === 3 ? <span className="text-amber-700 font-bold">🥉 #3</span> : `#${p.rank}`}
                       </td>
                       <td className="px-4 py-3 font-medium text-ink">{p.player_name}</td>
-                      <td className="px-4 py-3 text-muted">{p.team_name ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted">
+                        <div className="flex items-center gap-2">
+                          <ClubCrest src={p.team_logo} name={p.team_name ?? ""} size="xs" />
+                          <span className="text-sm font-medium text-ink">{p.team_name ?? "—"}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-xs text-muted">{p.league_name}</td>
                       <td className="px-4 py-3 text-center font-mono text-muted">{p.appearances}</td>
                       <td className="px-4 py-3 text-right font-mono text-muted">{p.assists ?? 0}</td>
@@ -116,7 +122,12 @@ export default async function RankingsPage() {
                     <tr key={p.player_id} className="hover:bg-panel2/40">
                       <td className="px-4 py-3 font-mono font-medium text-muted">#{p.rank}</td>
                       <td className="px-4 py-3 font-medium text-ink">{p.player_name}</td>
-                      <td className="px-4 py-3 text-muted">{p.team_name ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted">
+                        <div className="flex items-center gap-2">
+                          <ClubCrest src={p.team_logo} name={p.team_name ?? ""} size="xs" />
+                          <span className="text-sm font-medium text-ink">{p.team_name ?? "—"}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-xs text-muted">{p.league_name}</td>
                       <td className="px-4 py-3 text-right font-mono">{p.goals}</td>
                       <td className="px-4 py-3 text-right font-mono">{p.assists ?? 0}</td>

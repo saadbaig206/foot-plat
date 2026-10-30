@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api, type MatchPredictionDetail } from "@/lib/api";
 import { Card, ErrorState, PageHeader, Stat, Tag, fmtDate } from "@/components/ui";
+import ClubCrest from "@/components/ClubCrest";
 import { ArrowLeft, CheckCircle2, HelpCircle, Info, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -39,20 +40,22 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           <span>{fmtDate(p.match_date)} · Version {p.model_version}</span>
         </div>
 
-        <div className="my-6 grid grid-cols-3 items-center text-center">
-          <div>
-            <h1 className="text-xl font-bold sm:text-2xl">{p.home_team}</h1>
-            <span className="text-xs text-muted">Home</span>
+        <div className="my-6 grid grid-cols-3 items-center text-center gap-4">
+          <div className="flex flex-col items-center">
+            <ClubCrest src={p.home_logo} name={p.home_team} size="lg" className="mb-2.5" />
+            <h1 className="text-xl font-bold sm:text-2xl text-ink">{p.home_team}</h1>
+            <span className="text-xs text-muted mt-0.5">Home</span>
           </div>
           <div className="flex flex-col items-center">
-            <div className="rounded-lg bg-panel2 px-4 py-2 font-mono text-2xl font-bold tracking-widest text-pos">
+            <div className="rounded-xl border border-line/80 bg-panel2 px-5 py-2.5 font-mono text-3xl font-bold tracking-widest text-pos shadow-inner">
               {p.predicted_score}
             </div>
-            <span className="mt-1 text-[11px] text-muted">Expected Most Likely</span>
+            <span className="mt-1.5 text-xs font-medium text-muted">Expected Most Likely</span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold sm:text-2xl">{p.away_team}</h1>
-            <span className="text-xs text-muted">Away</span>
+          <div className="flex flex-col items-center">
+            <ClubCrest src={p.away_logo} name={p.away_team} size="lg" className="mb-2.5" />
+            <h1 className="text-xl font-bold sm:text-2xl text-ink">{p.away_team}</h1>
+            <span className="text-xs text-muted mt-0.5">Away</span>
           </div>
         </div>
 

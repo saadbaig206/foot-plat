@@ -21,8 +21,10 @@ export interface Match {
   status: string;
   home_team_id: number;
   home_team: string;
+  home_logo?: string | null;
   away_team_id: number;
   away_team: string;
+  away_logo?: string | null;
   home_goals: number | null;
   away_goals: number | null;
   result: "H" | "D" | "A" | null;
@@ -199,6 +201,7 @@ export interface AnalyticsDashboardData {
   }>;
   team_performance: Array<{
     team: string;
+    logo_url?: string | null;
     home_played: number;
     home_won: number;
     home_drawn: number;

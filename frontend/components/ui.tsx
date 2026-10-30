@@ -12,8 +12,8 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
 
 export function Card({ title, children, className = "" }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-lg border border-line bg-panel p-4 ${className}`}>
-      {title && <h2 className="mb-3 text-sm font-medium text-muted">{title}</h2>}
+    <section className={`rounded-xl border border-line bg-panel p-5 shadow-xs ${className}`}>
+      {title && <h2 className="mb-3.5 text-sm font-semibold tracking-tight text-ink">{title}</h2>}
       {children}
     </section>
   );
@@ -21,10 +21,10 @@ export function Card({ title, children, className = "" }: { title?: string; chil
 
 export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-line bg-panel p-4">
-      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
-      <div className="tnum mt-1 text-2xl font-semibold">{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
+    <div className="relative overflow-hidden rounded-xl border border-line bg-gradient-to-b from-panel to-panel2/40 p-4.5 shadow-xs transition-all hover:border-line/80">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">{label}</div>
+      <div className="tnum mt-1.5 text-2xl font-black tracking-tight text-ink sm:text-3xl">{value}</div>
+      {hint && <div className="mt-1 text-xs text-muted/80">{hint}</div>}
     </div>
   );
 }

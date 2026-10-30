@@ -152,7 +152,7 @@ def analytics_dashboard(
 
     # 3. Team Home vs Away Performance Splits
     perf_sql = f"""
-        SELECT t.name AS team,
+        SELECT t.name AS team, t.logo_url,
                tp.home_played, tp.home_won, tp.home_drawn, tp.home_lost, tp.home_gf, tp.home_ga,
                tp.away_played, tp.away_won, tp.away_drawn, tp.away_lost, tp.away_gf, tp.away_ga,
                round((CASE WHEN tp.home_played > 0 THEN tp.home_won::numeric / tp.home_played * 100 ELSE 0 END), 1) AS home_win_rate,

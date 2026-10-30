@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api, type AnalyticsDashboardData, type League } from "@/lib/api";
 import { Card, EmptyState, ErrorState, PageHeader, Stat } from "@/components/ui";
+import ClubCrest from "@/components/ClubCrest";
 import { Activity, Award, BarChart3, ChevronRight, Flame, Globe2, ShieldCheck, TrendingUp, Trophy } from "lucide-react";
 
 const SUPPORTED_LEAGUES = [
@@ -168,7 +169,10 @@ export default async function AnalyticsPage({
                           </span>
                         </td>
                         <td className="px-3 py-2.5 font-medium text-ink">
-                          {s.team}
+                          <div className="flex items-center gap-2.5">
+                            <ClubCrest src={s.logo_url} name={s.team} size="sm" />
+                            <span className="font-semibold text-ink">{s.team}</span>
+                          </div>
                         </td>
                         <td className="px-2 py-2.5 text-center font-mono text-muted">{s.played}</td>
                         <td className="px-2 py-2.5 text-center font-mono">{s.won}</td>
@@ -241,6 +245,7 @@ export default async function AnalyticsPage({
                   <div key={s.player_name} className="flex items-center justify-between rounded p-2 hover:bg-panel2/40">
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-xs font-semibold text-muted">#{idx + 1}</span>
+                      <ClubCrest src={s.team_logo} name={s.team} size="sm" />
                       <div>
                         <div className="font-semibold text-sm text-ink">{s.player_name}</div>
                         <div className="text-[11px] text-muted">{s.team}</div>
@@ -273,9 +278,12 @@ export default async function AnalyticsPage({
               <div className="space-y-2.5 rounded-lg border border-line bg-panel p-4">
                 {d.team_performance.slice(0, 6).map((t) => (
                   <div key={t.team} className="text-xs">
-                    <div className="mb-1 flex justify-between font-medium">
-                      <span className="text-ink font-semibold">{t.team}</span>
-                      <span className="text-muted">Home {t.home_win_rate}% · Away {t.away_win_rate}%</span>
+                    <div className="mb-1 flex items-center justify-between font-medium">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ClubCrest src={t.logo_url} name={t.team} size="xs" />
+                        <span className="text-ink font-semibold truncate">{t.team}</span>
+                      </div>
+                      <span className="text-muted shrink-0 text-[11px]">Home {t.home_win_rate}% · Away {t.away_win_rate}%</span>
                     </div>
                     <div className="flex h-2 w-full overflow-hidden rounded-full bg-panel2">
                       <div style={{ width: `${t.home_win_rate}%` }} className="bg-pos transition-all" title={`Home Win: ${t.home_win_rate}%`} />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api, type ModelStatus, type PredictionItem } from "@/lib/api";
 import { Card, EmptyState, ErrorState, PageHeader, Stat, Tag, fmtDate } from "@/components/ui";
+import ClubCrest from "@/components/ClubCrest";
 import { BrainCircuit, ChevronRight, ShieldCheck, Target, TrendingUp } from "lucide-react";
 
 export default async function PredictionsPage() {
@@ -70,18 +71,29 @@ export default async function PredictionsPage() {
                       <span>{fmtDate(p.match_date)}</span>
                     </div>
 
-                    {/* Matchup */}
-                    <div className="my-4 flex items-center justify-between">
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold text-ink sm:text-lg">{p.home_team}</div>
-                        <span className="text-xs text-muted">Home {isHomeFav && "· Favourite"}</span>
+                    {/* Matchup with Club Crests */}
+                    <div className="my-4 flex items-center justify-between gap-3">
+                      <div className="flex flex-1 items-center gap-3 text-left min-w-0">
+                        <ClubCrest src={p.home_logo} name={p.home_team} size="md" />
+                        <div className="min-w-0">
+                          <div className="font-semibold text-ink sm:text-base truncate">{p.home_team}</div>
+                          <span className="text-xs text-muted">Home {isHomeFav && "· Favourite"}</span>
+                        </div>
                       </div>
-                      <div className="mx-3 rounded bg-panel2 px-2.5 py-1 text-center font-mono text-sm font-bold tracking-wider">
-                        {p.predicted_score ?? "vs"}
+
+                      <div className="flex flex-col items-center shrink-0">
+                        <div className="rounded-md border border-line bg-panel2 px-3 py-1 text-center font-mono text-sm font-bold tracking-wider text-ink shadow-xs">
+                          {p.predicted_score ?? "VS"}
+                        </div>
+                        <span className="text-[10px] text-muted mt-0.5">Forecast</span>
                       </div>
-                      <div className="flex-1 text-right">
-                        <div className="font-semibold text-ink sm:text-lg">{p.away_team}</div>
-                        <span className="text-xs text-muted">Away {!isHomeFav && "· Favourite"}</span>
+
+                      <div className="flex flex-1 items-center justify-end gap-3 text-right min-w-0">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-ink sm:text-base truncate">{p.away_team}</div>
+                          <span className="text-xs text-muted">Away {!isHomeFav && "· Favourite"}</span>
+                        </div>
+                        <ClubCrest src={p.away_logo} name={p.away_team} size="md" />
                       </div>
                     </div>
 

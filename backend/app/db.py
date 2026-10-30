@@ -326,7 +326,9 @@ def _normalize_sql(sql: str, params: Any) -> tuple[str, Any]:
     return sql, params
 
 
-def query(sql: str, params: tuple | dict | list = ()) -> list[dict]:
+def query(sql: str, params: Any = ()) -> list[dict]:
+    if params is not None and not isinstance(params, (tuple, list, dict)):
+        params = (params,)
     sql, params = _normalize_sql(sql, params)
     with conn() as c:
         cur = c.cursor()
@@ -342,7 +344,9 @@ def query(sql: str, params: tuple | dict | list = ()) -> list[dict]:
             cur.close()
 
 
-def query_one(sql: str, params: tuple | dict | list = ()) -> dict | None:
+def query_one(sql: str, params: Any = ()) -> dict | None:
+    if params is not None and not isinstance(params, (tuple, list, dict)):
+        params = (params,)
     sql, params = _normalize_sql(sql, params)
     with conn() as c:
         cur = c.cursor()
@@ -356,7 +360,9 @@ def query_one(sql: str, params: tuple | dict | list = ()) -> dict | None:
             cur.close()
 
 
-def execute(sql: str, params: tuple | dict | list = ()) -> Any:
+def execute(sql: str, params: Any = ()) -> Any:
+    if params is not None and not isinstance(params, (tuple, list, dict)):
+        params = (params,)
     sql, params = _normalize_sql(sql, params)
     with conn() as c:
         cur = c.cursor()

@@ -167,7 +167,7 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
     league_id = league_row["id"]
     country = league_row["country"]
 
-    run_id = query_one("INSERT INTO ingestion_runs (source) VALUES (%s) RETURNING id", (f"{SRC}:{competition_code}"))["id"]
+    run_id = query_one("INSERT INTO ingestion_runs (source) VALUES (%s) RETURNING id", (f"{SRC}:{competition_code}",))["id"]
 
     total_read = 0
     total_written = 0

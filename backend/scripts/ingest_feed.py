@@ -35,9 +35,14 @@ def main():
     print(f"Starting ingestion for {len(competitions)} competitions: {', '.join(competitions)}...")
     for code in competitions:
         try:
-            print(f"Ingesting {code}...")
+            print(f"Fetching {code} from football-data.org API...")
             res = ingest_competition(code, client=client)
-            print(f"  {code} completed: read {res.get('rows_read', 0)}, written {res.get('rows_written', 0)}")
+            if "error" in res:
+                print(f"  Warning: {res['error']}")
+            else:
+                read_count = res.get('rows_read', 0)
+                written_count = res.get('rows_written', 0)
+                print(f"  Success: {read_count} fixtures read, {written_count} updated in database.")
         except Exception as e:
             print(f"  Error ingesting {code}: {e}")
 
@@ -47,4 +52,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

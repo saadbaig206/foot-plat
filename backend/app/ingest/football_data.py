@@ -32,6 +32,17 @@ COMPETITION_MAP = {
     "PPL": "P1",   # Primeira Liga
 }
 
+LEAGUE_METADATA = {
+    "PL": ("E0", "Premier League", "England", 1),
+    "ELC": ("E1", "Championship", "England", 2),
+    "PD": ("SP1", "La Liga", "Spain", 1),
+    "BL1": ("D1", "Bundesliga", "Germany", 1),
+    "SA": ("I1", "Serie A", "Italy", 1),
+    "FL1": ("F1", "Ligue 1", "France", 1),
+    "DED": ("N1", "Eredivisie", "Netherlands", 1),
+    "PPL": ("P1", "Primeira Liga", "Portugal", 1),
+}
+
 REV_COMPETITION_MAP = {v: k for k, v in COMPETITION_MAP.items()}
 
 
@@ -87,6 +98,31 @@ class FootballDataClient:
         self.client.close()
 
 
+def _ensure_league(competition_code: str) -> dict:
+    """Ensures league exists in DB, automatically seeding metadata if missing."""
+    our_code = COMPETITION_MAP.get(competition_code, competition_code)
+    row = query_one("SELECT id, country FROM leagues WHERE code = %s", (our_code,))
+    if row:
+        return row
+
+    meta = LEAGUE_METADATA.get(competition_code)
+    if meta:
+        code, name, country, tier = meta
+    else:
+        code = our_code
+        name = competition_code
+        country = None
+        tier = 1
+
+    execute("""
+        INSERT INTO leagues (code, name, country, tier, source, last_updated)
+        VALUES (%s, %s, %s, %s, %s, now())
+        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, country = coalesce(EXCLUDED.country, leagues.country), last_updated = now()
+    """, (code, name, country, tier, SRC))
+
+    return query_one("SELECT id, country FROM leagues WHERE code = %s", (code,))
+
+
 def _ensure_team(name: str, country: str | None, logo_url: str | None = None, ext_id: int | None = None) -> int:
     """Gets or creates a team and updates logo if provided."""
     row = query_one("SELECT id, logo_url FROM teams WHERE name = %s AND (country = %s OR country IS NULL)", (name, country))
@@ -97,7 +133,6 @@ def _ensure_team(name: str, country: str | None, logo_url: str | None = None, ex
             execute("UPDATE teams SET logo_url = %s, last_updated = now() WHERE id = %s", (logo_url, tid))
         return tid
 
-    # Insert team
     new_row = query_one(
         """INSERT INTO teams (name, country, logo_url, external_ids, source, last_updated)
            VALUES (%s, %s, %s, %s::jsonb, %s, now())
@@ -115,10 +150,12 @@ def _get_or_create_season(match_date: datetime.date) -> int:
     if row:
         return row["id"]
     new_s = query_one(
-        "INSERT INTO seasons (label, start_date, end_date) VALUES (%s, %s, %s) RETURNING id",
+        "INSERT INTO seasons (label, start_date, end_date) VALUES (%s, %s, %s) ON CONFLICT (label) DO NOTHING RETURNING id",
         (label, f"{y}-07-01", f"{y+1}-06-30")
     )
-    return new_s["id"]
+    if new_s:
+        return new_s["id"]
+    return query_one("SELECT id FROM seasons WHERE label = %s", (label,))["id"]
 
 
 def ingest_competition(competition_code: str, client: FootballDataClient | None = None) -> dict:
@@ -126,15 +163,10 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
     if client is None:
         client = FootballDataClient()
 
-    our_league_code = COMPETITION_MAP.get(competition_code, competition_code)
-    league_row = query_one("SELECT id, country FROM leagues WHERE code = %s", (our_league_code,))
-    if not league_row:
-        return {"error": f"League code {our_league_code} not found in database."}
-
+    league_row = _ensure_league(competition_code)
     league_id = league_row["id"]
     country = league_row["country"]
 
-    # Start ingestion run record
     run_id = query_one("INSERT INTO ingestion_runs (source) VALUES (%s) RETURNING id", (f"{SRC}:{competition_code}"))["id"]
 
     total_read = 0
@@ -194,7 +226,7 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
                 else:
                     res = "D"
 
-            # Upsert match
+            # Upsert match: in-place cell update on conflict
             execute("""
                 INSERT INTO matches (league_id, season_id, match_date, kickoff_utc, home_team_id, away_team_id,
                                     status, home_goals, away_goals, ht_home_goals, ht_away_goals, result, source, last_updated)
@@ -222,7 +254,6 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
                         if not t_name:
                             continue
                         tid = _ensure_team(t_name, country, t_info.get("crest"), t_info.get("id"))
-                        # Find current season
                         curr_season = query_one("SELECT id FROM seasons ORDER BY end_date DESC LIMIT 1")
                         curr_sid = curr_season["id"] if curr_season else 1
 
@@ -265,7 +296,12 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
                 p_row = query_one(
                     """INSERT INTO players (name, nationality, position, current_team_id, external_ids, source, last_updated)
                        VALUES (%s, %s, %s, %s, %s::jsonb, %s, now())
-                       ON CONFLICT DO NOTHING RETURNING id""",
+                       ON CONFLICT (name) DO UPDATE SET
+                           current_team_id = coalesce(EXCLUDED.current_team_id, players.current_team_id),
+                           nationality = coalesce(EXCLUDED.nationality, players.nationality),
+                           position = coalesce(EXCLUDED.position, players.position),
+                           last_updated = now()
+                       RETURNING id""",
                     (p_name, p_info.get("nationality"), p_info.get("section") or p_info.get("position"), tid, ext_p, SRC)
                 )
                 pid = p_row["id"] if p_row else query_one("SELECT id FROM players WHERE name = %s", (p_name,))["id"]
@@ -296,4 +332,3 @@ def ingest_competition(competition_code: str, client: FootballDataClient | None 
         execute("UPDATE ingestion_runs SET status = 'failed', finished_at = now(), error = %s WHERE id = %s",
                 (str(e), run_id))
         raise
-

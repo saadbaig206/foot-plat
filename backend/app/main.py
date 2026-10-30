@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import close_pool
 from .ml.registry import register_v1_artifact
-from .routers import football, system, predictions, rankings
+from .routers import football, system, predictions, rankings, analytics
 
 logger = logging.getLogger(__name__)
 
@@ -34,3 +34,4 @@ app.include_router(system.router)
 app.include_router(football.router)
 app.include_router(predictions.router)
 app.include_router(rankings.router)
+app.include_router(analytics.router)

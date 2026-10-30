@@ -1,1 +1,2 @@
-
+league_id,league_code,league_name,country,tier,season_id,season_label,total_matches,finished_matches,scheduled_matches,total_goals,avg_goals_per_match,avg_home_goals,avg_away_goals,total_teams
+1,E0,Premier League,England,1,4,2026/27,380,80,300,222,2.78,1.51,1.26,20

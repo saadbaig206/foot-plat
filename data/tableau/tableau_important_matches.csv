@@ -1,1 +1,15 @@
-
+match_id,league_code,league_name,season,match_date,home_team,away_team,home_goals,away_goals,result,home_elo,away_elo,combined_elo,elo_gap,odd_home,odd_draw,odd_away,total_goals,match_category
+68,E0,Premier League,2026/27,2026-10-18,Brighton & Hove Albion FC,Crystal Palace FC,5,0,H,,,0.0,0.0,,,,5,Standard Match
+63,E0,Premier League,2026/27,2026-10-17,Manchester City FC,Ipswich Town FC,3,2,H,,,0.0,0.0,,,,5,Standard Match
+60,E0,Premier League,2026/27,2026-10-12,Coventry City FC,Newcastle United FC,4,1,H,,,0.0,0.0,,,,5,Standard Match
+53,E0,Premier League,2026/27,2026-10-10,Chelsea FC,AFC Bournemouth,5,1,H,,,0.0,0.0,,,,6,High-Scoring Thriller
+49,E0,Premier League,2026/27,2026-09-20,Manchester City FC,Sunderland AFC,5,3,H,,,0.0,0.0,,,,8,High-Scoring Thriller
+42,E0,Premier League,2026/27,2026-09-19,Tottenham Hotspur FC,Aston Villa FC,2,3,A,,,0.0,0.0,,,,5,Standard Match
+40,E0,Premier League,2026/27,2026-09-14,Leeds United FC,Newcastle United FC,4,1,H,,,0.0,0.0,,,,5,Standard Match
+38,E0,Premier League,2026/27,2026-09-13,Coventry City FC,Brighton & Hove Albion FC,0,5,A,,,0.0,0.0,,,,5,Standard Match
+31,E0,Premier League,2026/27,2026-09-12,Crystal Palace FC,Ipswich Town FC,2,3,A,,,0.0,0.0,,,,5,Standard Match
+27,E0,Premier League,2026/27,2026-09-05,Fulham FC,Crystal Palace FC,2,3,A,,,0.0,0.0,,,,5,Standard Match
+19,E0,Premier League,2026/27,2026-08-30,Manchester United FC,Ipswich Town FC,5,2,H,,,0.0,0.0,,,,7,High-Scoring Thriller
+17,E0,Premier League,2026/27,2026-08-30,Chelsea FC,Brighton & Hove Albion FC,4,3,H,,,0.0,0.0,,,,7,High-Scoring Thriller
+11,E0,Premier League,2026/27,2026-08-28,Crystal Palace FC,Manchester City FC,1,4,A,,,0.0,0.0,,,,5,Standard Match
+10,E0,Premier League,2026/27,2026-08-24,Fulham FC,Chelsea FC,2,3,A,,,0.0,0.0,,,,5,Standard Match

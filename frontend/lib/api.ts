@@ -165,3 +165,62 @@ export interface PlayerRanking {
   minutes_per_goal?: number | null;
   composite_rating?: number;
 }
+
+export interface AnalyticsDashboardData {
+  league: { id: number; code: string; name: string; country: string } | null;
+  season: string;
+  kpis: {
+    matches_played: number;
+    total_goals: number;
+    goals_per_match: number;
+    avg_home_goals?: number;
+    avg_away_goals?: number;
+    home_win_pct: number;
+    draw_pct: number;
+    away_win_pct: number;
+    over_2_5_pct: number;
+    clean_sheet_pct?: number;
+  };
+  standings: Array<{
+    position: number;
+    team_id: number;
+    team: string;
+    logo_url: string | null;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goals_for: number;
+    goals_against: number;
+    goal_difference: number;
+    points: number;
+    points_per_match: number;
+    form: string | null;
+  }>;
+  team_performance: Array<{
+    team: string;
+    home_played: number;
+    home_won: number;
+    home_drawn: number;
+    home_lost: number;
+    home_gf: number;
+    home_ga: number;
+    away_played: number;
+    away_won: number;
+    away_drawn: number;
+    away_lost: number;
+    away_gf: number;
+    away_ga: number;
+    home_win_rate: number;
+    away_win_rate: number;
+  }>;
+  top_scorers: Array<{
+    player_name: string;
+    team: string;
+    team_logo: string | null;
+    appearances: number;
+    goals: number;
+    assists: number | null;
+    mins_per_goal: number | null;
+  }>;
+}

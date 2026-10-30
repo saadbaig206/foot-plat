@@ -1,1 +1,11 @@
-
+player_name,nationality,position,team,league_code,league_name,season,appearances,minutes,goals,assists,goal_contributions,mins_per_goal
+Erling Haaland,Norway,Offence,Manchester City FC,E0,Premier League,2026/27,8,,9,,,
+Alexander Isak,Sweden,Offence,Liverpool FC,E0,Premier League,2026/27,7,,6,,,
+João Pedro,Brazil,Offence,Chelsea FC,E0,Premier League,2026/27,6,,5,3.0,8.0,
+Marcus Tavernier,England,Offence,AFC Bournemouth,E0,Premier League,2026/27,8,,5,,,
+Rayan Cherki,France,Midfield,Manchester City FC,E0,Premier League,2026/27,8,,4,2.0,6.0,
+Morgan Rogers,England,Midfield,Chelsea FC,E0,Premier League,2026/27,8,,4,1.0,5.0,
+Bryan Mbeumo,Cameroon,Offence,Manchester United FC,E0,Premier League,2026/27,8,,4,,,
+Nicolas Jackson,Senegal,Offence,Aston Villa FC,E0,Premier League,2026/27,7,,4,,,
+Bukayo Saka,England,Offence,Arsenal FC,E0,Premier League,2026/27,7,,3,,,
+Thierno Barry,France,Offence,Everton FC,E0,Premier League,2026/27,8,,3,,,

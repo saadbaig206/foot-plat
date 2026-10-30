@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}>
       <body className="min-h-full md:flex">
-        <Sidebar />
+        <Suspense fallback={<aside className="hidden md:block md:w-60 md:shrink-0 md:border-r border-line bg-panel" />}>
+          <Sidebar />
+        </Suspense>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
       </body>
     </html>

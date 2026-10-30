@@ -1,0 +1,177 @@
+{
+  "version": "v1",
+  "trained_at": "2026-10-30T13:14:20.088910+00:00",
+  "train_range": "2000-07-28..2024-12-31",
+  "test_range": "2025-01-01..2026-09-03",
+  "n_train": 169421,
+  "n_test": 11926,
+  "features": [
+    "Division_enc",
+    "Month",
+    "HomeElo",
+    "AwayElo",
+    "EloDiff",
+    "Form3Home",
+    "Form5Home",
+    "Form3Away",
+    "Form5Away",
+    "FormDiff3",
+    "FormDiff5",
+    "OddHome",
+    "OddDraw",
+    "OddAway",
+    "ImpProbHome",
+    "ImpProbDraw",
+    "ImpProbAway",
+    "OddsMargin"
+  ],
+  "divisions": [
+    "B1",
+    "D1",
+    "D2",
+    "E0",
+    "E1",
+    "E2",
+    "E3",
+    "EC",
+    "F1",
+    "F2",
+    "G1",
+    "I1",
+    "I2",
+    "N1",
+    "P1",
+    "SC0",
+    "SC1",
+    "SC2",
+    "SC3",
+    "SP1",
+    "SP2",
+    "T1"
+  ],
+  "metrics": {
+    "fav_avoids_defeat": {
+      "n_test": 11926,
+      "base_rate": 0.7647,
+      "accuracy": 0.7647,
+      "precision_succeeds": 0.7647,
+      "recall_succeeds": 1.0,
+      "f1": 0.8667,
+      "roc_auc": 0.6261,
+      "bookmaker_roc_auc": 0.6274,
+      "brier": 0.1735,
+      "bookmaker_brier": 0.1734,
+      "log_loss": 0.5254,
+      "confusion_matrix": [
+        [
+          0,
+          2806
+        ],
+        [
+          0,
+          9120
+        ]
+      ],
+      "coverage_by_threshold": {
+        "0.6": {
+          "coverage": 0.9993,
+          "n": 11918,
+          "accuracy": 0.7647
+        },
+        "0.7": {
+          "coverage": 0.7547,
+          "n": 9001,
+          "accuracy": 0.7947
+        },
+        "0.8": {
+          "coverage": 0.3201,
+          "n": 3817,
+          "accuracy": 0.8646
+        },
+        "0.85": {
+          "coverage": 0.1456,
+          "n": 1737,
+          "accuracy": 0.9062
+        },
+        "0.9": {
+          "coverage": 0.0678,
+          "n": 809,
+          "accuracy": 0.9444
+        }
+      },
+      "calibration": [
+        {
+          "bin": "0.6-0.7",
+          "n": 2917,
+          "mean_pred": 0.674,
+          "actual": 0.672
+        },
+        {
+          "bin": "0.7-0.8",
+          "n": 5184,
+          "mean_pred": 0.748,
+          "actual": 0.743
+        },
+        {
+          "bin": "0.8-0.9",
+          "n": 3008,
+          "mean_pred": 0.838,
+          "actual": 0.843
+        },
+        {
+          "bin": "0.9-1.0",
+          "n": 809,
+          "mean_pred": 0.931,
+          "actual": 0.944
+        }
+      ],
+      "note": "Accuracy inside high-confidence tiers reflects selection of lopsided fixtures; the model matches bookmaker-implied AUC/Brier, it does not beat them."
+    },
+    "outcome_1x2": {
+      "n_test": 11926,
+      "accuracy": 0.506,
+      "log_loss": 1.0018,
+      "bookmaker_accuracy": 0.5055,
+      "bookmaker_log_loss": 1.0018,
+      "always_home_accuracy": 0.431,
+      "brier_multiclass": 0.5991,
+      "bookmaker_brier_multiclass": 0.5991,
+      "confusion_matrix_A_D_H": [
+        [
+          1803,
+          21,
+          1870
+        ],
+        [
+          997,
+          17,
+          2078
+        ],
+        [
+          905,
+          20,
+          4215
+        ]
+      ]
+    },
+    "goals_home": {
+      "mae": 0.937,
+      "rmse": 1.177,
+      "baseline_mae": 1.019,
+      "baseline_rmse": 1.249,
+      "label": "predicted goals (model output), not xG"
+    },
+    "goals_away": {
+      "mae": 0.831,
+      "rmse": 1.062,
+      "baseline_mae": 0.861,
+      "baseline_rmse": 1.114,
+      "label": "predicted goals (model output), not xG"
+    }
+  },
+  "caveats": [
+    "Elo after 2025-06-15 in the source dataset is provisional.",
+    "Models match bookmaker-implied probabilities; they do not beat the market.",
+    "Requires pre-match market odds as input."
+  ]
+}

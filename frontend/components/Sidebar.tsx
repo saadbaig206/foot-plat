@@ -5,23 +5,19 @@ import { useState } from "react";
 import {
   Activity,
   Award,
-  BarChart3,
-  BrainCircuit,
   Database,
   LayoutDashboard,
   Menu,
   Settings,
   Shirt,
-  Sparkles,
   Trophy,
   UserRound,
   X,
 } from "lucide-react";
 
+// Merged Overview + Football Analytics + AI Predictions into unified "Dashboard"
 const NAV = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/analytics", label: "Football Analytics", icon: BarChart3 },
-  { href: "/predictions", label: "AI Predictions", icon: BrainCircuit },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/rankings", label: "Rankings & Awards", icon: Award },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/teams", label: "Clubs & Teams", icon: Shirt },
@@ -32,7 +28,13 @@ const NAV = [
 export default function Sidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
-  const active = (h: string) => (h === "/" ? path === "/" : path.startsWith(h));
+
+  const active = (h: string) => {
+    if (h === "/") {
+      return path === "/" || path === "/analytics" || path === "/predictions";
+    }
+    return path.startsWith(h);
+  };
 
   return (
     <>

@@ -56,3 +56,4 @@ export default function ClubCrest({ src, name, size = "md", className = "" }: Cl
     </div>
   );
 }
+

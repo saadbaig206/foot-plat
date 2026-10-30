@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { BarChart3, BrainCircuit, LayoutDashboard, Menu, Settings, Shirt, Trophy, UserRound, X } from "lucide-react";
+import { BarChart3, BrainCircuit, LayoutDashboard, Menu, Settings, Shirt, Trophy, UserRound, Award, X } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/analytics", label: "Football Analytics", icon: BarChart3 },
   { href: "/predictions", label: "AI Predictions", icon: BrainCircuit },
+  { href: "/rankings", label: "Rankings & Awards", icon: Award },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/teams", label: "Teams", icon: Shirt },
   { href: "/players", label: "Players", icon: UserRound },

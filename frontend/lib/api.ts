@@ -14,15 +14,154 @@ export async function api<T>(path: string): Promise<ApiResult<T>> {
 }
 
 export interface Match {
-  id: number; league_code: string; league: string; match_date: string; status: string;
-  home_team_id: number; home_team: string; away_team_id: number; away_team: string;
-  home_goals: number | null; away_goals: number | null; result: "H" | "D" | "A" | null;
-  source: string; last_updated: string;
+  id: number;
+  league_code: string;
+  league: string;
+  match_date: string;
+  status: string;
+  home_team_id: number;
+  home_team: string;
+  away_team_id: number;
+  away_team: string;
+  home_goals: number | null;
+  away_goals: number | null;
+  result: "H" | "D" | "A" | null;
+  source: string;
+  last_updated: string;
 }
-export interface League { id: number; code: string; name: string; country: string | null; tier: number | null;
-  matches: number; first_match: string | null; last_match: string | null; }
-export interface Team { id: number; name: string; country: string | null; logo_url: string | null; }
-export interface Player { id: number; name: string; nationality: string | null; position: string | null; }
-export interface ModelStatus { models_registered: number; models_active: number; ready_for_predictions: boolean; note: string | null; }
-export interface LastUpdated { matches: string | null; standings: string | null; player_stats: string | null;
-  latest_result_date: string | null; last_successful_ingest: string | null; }
+
+export interface League {
+  id: number;
+  code: string;
+  name: string;
+  country: string | null;
+  tier: number | null;
+  matches: number;
+  first_match: string | null;
+  last_match: string | null;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  country: string | null;
+  logo_url: string | null;
+}
+
+export interface Player {
+  id: number;
+  name: string;
+  nationality: string | null;
+  position: string | null;
+}
+
+export interface ModelStatus {
+  models_registered: number;
+  models_active: number;
+  ready_for_predictions: boolean;
+  note: string | null;
+  models?: Array<{
+    name: string;
+    version: string;
+    trained_at: string;
+    is_active: boolean;
+    metrics: any;
+  }>;
+}
+
+export interface LastUpdated {
+  matches: string | null;
+  standings: string | null;
+  player_stats: string | null;
+  latest_result_date: string | null;
+  last_successful_ingest: string | null;
+}
+
+export interface PredictionItem {
+  prediction_id: number;
+  match_id: number;
+  generated_at: string;
+  p_home: number;
+  p_draw: number;
+  p_away: number;
+  p_fav_avoids_defeat: number;
+  favourite_side: "H" | "A";
+  exp_home_goals: number;
+  exp_away_goals: number;
+  predicted_score: string;
+  confidence: number;
+  model_version: string;
+  match_date: string;
+  status: string;
+  home_goals: number | null;
+  away_goals: number | null;
+  result: "H" | "D" | "A" | null;
+  league_code: string;
+  league_name: string;
+  home_team_id: number;
+  home_team: string;
+  home_logo: string | null;
+  away_team_id: number;
+  away_team: string;
+  away_logo: string | null;
+  disclaimer: string;
+  probabilities: {
+    home: number;
+    draw: number;
+    away: number;
+  };
+}
+
+export interface MatchPredictionDetail {
+  match_id: number;
+  match_date: string;
+  kickoff_utc: string | null;
+  league_code: string;
+  league_name: string;
+  home_team: string;
+  home_logo: string | null;
+  away_team: string;
+  away_logo: string | null;
+  model_version: string;
+  probabilities: {
+    home: number;
+    draw: number;
+    away: number;
+  };
+  most_likely_outcome: "H" | "D" | "A";
+  confidence: number;
+  bookmaker_favourite: "home" | "away";
+  favourite_avoids_defeat_prob: number;
+  predicted_goals: {
+    home: number;
+    away: number;
+    label: string;
+  };
+  predicted_score: string;
+  top_scorelines: Array<{ score: string; probability: number }>;
+  odds_estimated: boolean;
+  explanation: string;
+  disclaimer: string;
+}
+
+export interface PlayerRanking {
+  rank: number;
+  player_id: number;
+  player_name: string;
+  nationality: string | null;
+  position: string | null;
+  photo_url: string | null;
+  team_id: number | null;
+  team_name: string | null;
+  team_logo: string | null;
+  league_code?: string;
+  league_name: string;
+  season: string;
+  appearances: number;
+  minutes: number | null;
+  goals: number;
+  assists: number | null;
+  total_contributions?: number;
+  minutes_per_goal?: number | null;
+  composite_rating?: number;
+}

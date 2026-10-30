@@ -1,0 +1,52 @@
+"""Inference service. Loads a versioned artifact and produces predictions from raw pre-match inputs
+using the same `build_features` as training."""
+from pathlib import Path
+import joblib, numpy as np, pandas as pd
+from scipy.stats import poisson
+from .features import build_features, REQUIRED_FOR_SERVING
+from .compat import apply_numpy_compat
+
+apply_numpy_compat()
+
+
+class MissingInputs(ValueError):
+    pass
+
+
+class Predictor:
+    def __init__(self, artifacts_dir: Path, version: str | None = None):
+        dirs = sorted(p for p in Path(artifacts_dir).glob("v*") if (p / "model.joblib").exists())
+        if not dirs:
+            raise FileNotFoundError("no trained model artifacts; run `python -m ml.train`")
+        d = (Path(artifacts_dir) / version) if version else dirs[-1]
+        self.a = joblib.load(d / "model.joblib")
+        self.meta = self.a["meta"]
+        self.version = self.meta["version"]
+
+    def predict(self, raw: dict) -> dict:
+        missing = [c for c in REQUIRED_FOR_SERVING if not raw.get(c)]
+        if missing:
+            raise MissingInputs(f"market odds required, missing: {missing}")
+        X = build_features(pd.DataFrame([raw]), self.a["division_map"])
+        pA, pD, pH = [float(x) for x in self.a["outcome"].predict_proba(X)[0]]
+        lh = max(float(self.a["goals_home"].predict(X)[0]), 0.05)
+        la = max(float(self.a["goals_away"].predict(X)[0]), 0.05)
+        grid = np.outer(poisson.pmf(range(7), lh), poisson.pmf(range(7), la))
+        grid /= grid.sum()
+        top = np.dstack(np.unravel_index(np.argsort(-grid.ravel())[:5], grid.shape))[0]
+        home_fav = X.ImpProbHome.iloc[0] >= X.ImpProbAway.iloc[0]
+        p_fav_ok = float(self.a["fav"].predict_proba(X)[0, 1])
+        likely = {"H": pH, "D": pD, "A": pA}
+        return {
+            "model_version": self.version,
+            "outcome_probabilities": {"home": pH, "draw": pD, "away": pA},
+            "most_likely_outcome": max(likely, key=likely.get),
+            "bookmaker_favourite": "home" if home_fav else "away",
+            "favourite_avoids_defeat_probability": p_fav_ok,
+            "favourite_wins_probability": pH if home_fav else pA,
+            "predicted_goals": {"home": lh, "away": la, "label": "model-predicted goals, not xG"},
+            "scoreline_most_likely": f"{top[0][0]}-{top[0][1]}",
+            "alternative_scorelines": [{"score": f"{i}-{j}", "probability": float(grid[i, j])} for i, j in top],
+            "confidence": max(pH, pD, pA),
+            "disclaimer": "Probabilistic estimates, not guaranteed outcomes. Accuracy is at bookmaker-implied level.",
+        }

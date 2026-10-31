@@ -250,6 +250,27 @@ class ModelService:
                 top_scoreline, confidence, json.dumps(features_used)
             ))
 
+        # Query Head-to-Head (H2H) clash history
+        h2h_sql = """
+            SELECT m.id, m.match_date, m.home_goals, m.away_goals, m.result,
+                   ht.name AS home_team, ht.logo_url AS home_logo,
+                   at.name AS away_team, at.logo_url AS away_logo
+            FROM matches m
+            JOIN teams ht ON ht.id = m.home_team_id
+            JOIN teams at ON at.id = m.away_team_id
+            WHERE m.status = 'finished'
+              AND (
+                (m.home_team_id = %(hid)s AND m.away_team_id = %(aid)s)
+                OR (m.home_team_id = %(aid)s AND m.away_team_id = %(hid)s)
+              )
+            ORDER BY m.match_date DESC
+            LIMIT 5
+        """
+        h2h_matches = query(h2h_sql, {"hid": hid, "aid": aid})
+        h_wins = sum(1 for hm in h2h_matches if (hm["home_team"] == m["home_name"] and hm["result"] == "H") or (hm["away_team"] == m["home_name"] and hm["result"] == "A"))
+        a_wins = sum(1 for hm in h2h_matches if (hm["home_team"] == m["away_name"] and hm["result"] == "H") or (hm["away_team"] == m["away_name"] and hm["result"] == "A"))
+        draws = sum(1 for hm in h2h_matches if hm["result"] == "D")
+
         return {
             "match_id": match_id,
             "match_date": str(m_date),
@@ -279,6 +300,13 @@ class ModelService:
             "top_scorelines": scoreline_probs,
             "odds_estimated": odds_estimated,
             "explanation": explanation,
+            "h2h": {
+                "total": len(h2h_matches),
+                "home_wins": h_wins,
+                "draws": draws,
+                "away_wins": a_wins,
+                "past_matches": h2h_matches
+            },
             "disclaimer": "Probabilistic estimates, not guaranteed outcomes. Model calibrated to market-implied accuracy."
         }
 

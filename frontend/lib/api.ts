@@ -143,6 +143,23 @@ export interface MatchPredictionDetail {
   top_scorelines: Array<{ score: string; probability: number }>;
   odds_estimated: boolean;
   explanation: string;
+  h2h?: {
+    total: number;
+    home_wins: number;
+    draws: number;
+    away_wins: number;
+    past_matches: Array<{
+      id: number;
+      match_date: string;
+      home_team: string;
+      home_logo: string | null;
+      away_team: string;
+      away_logo: string | null;
+      home_goals: number;
+      away_goals: number;
+      result: string;
+    }>;
+  };
   disclaimer: string;
 }
 
@@ -198,6 +215,23 @@ export interface AnalyticsDashboardData {
     points: number;
     points_per_match: number;
     form: string | null;
+    home_played?: number;
+    home_won?: number;
+    home_drawn?: number;
+    home_lost?: number;
+    home_gf?: number;
+    home_ga?: number;
+    home_points?: number;
+    home_gd?: number;
+    away_played?: number;
+    away_won?: number;
+    away_drawn?: number;
+    away_lost?: number;
+    away_gf?: number;
+    away_ga?: number;
+    away_points?: number;
+    away_gd?: number;
+    form_points?: number;
   }>;
   team_performance: Array<{
     team: string;

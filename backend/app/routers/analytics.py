@@ -95,13 +95,34 @@ def analytics_dashboard(
                s.goals_for, s.goals_against, (s.goals_for - s.goals_against) AS goal_difference,
                s.points,
                round((CASE WHEN s.played > 0 THEN s.points::numeric / s.played ELSE 0 END), 2) AS points_per_match,
-               s.form
+               s.form,
+               coalesce(tp.home_played, 0) AS home_played,
+               coalesce(tp.home_won, 0) AS home_won,
+               coalesce(tp.home_drawn, 0) AS home_drawn,
+               coalesce(tp.home_lost, 0) AS home_lost,
+               coalesce(tp.home_gf, 0) AS home_gf,
+               coalesce(tp.home_ga, 0) AS home_ga,
+               (coalesce(tp.home_won, 0) * 3 + coalesce(tp.home_drawn, 0)) AS home_points,
+               (coalesce(tp.home_gf, 0) - coalesce(tp.home_ga, 0)) AS home_gd,
+               coalesce(tp.away_played, 0) AS away_played,
+               coalesce(tp.away_won, 0) AS away_won,
+               coalesce(tp.away_drawn, 0) AS away_drawn,
+               coalesce(tp.away_lost, 0) AS away_lost,
+               coalesce(tp.away_gf, 0) AS away_gf,
+               coalesce(tp.away_ga, 0) AS away_ga,
+               (coalesce(tp.away_won, 0) * 3 + coalesce(tp.away_drawn, 0)) AS away_points,
+               (coalesce(tp.away_gf, 0) - coalesce(tp.away_ga, 0)) AS away_gd
         FROM league_standings s
         JOIN teams t ON t.id = s.team_id
+        LEFT JOIN team_performance tp ON tp.team_id = s.team_id AND tp.league_id = s.league_id AND (%(sid)s IS NULL OR tp.season_id = %(sid)s)
         WHERE s.league_id = %(lid)s AND (%(sid)s IS NULL OR s.season_id = %(sid)s)
         ORDER BY s.position ASC
     """
     standings = query(standings_sql, {"lid": lid, "sid": sid})
+
+    for r in standings:
+        f_str = str(r.get("form") or "")
+        r["form_points"] = sum(3 if c == "W" else (1 if c == "D" else 0) for c in f_str[-5:])
 
     # If standings table is empty, compute live from matches
     if not standings and sid:

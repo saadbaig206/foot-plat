@@ -78,6 +78,67 @@ def match(match_id: int):
     return rows[0]
 
 
+@router.get("/h2h")
+def head_to_head(team1: int, team2: int, limit: int = Query(6, ge=1, le=20)):
+    """Computes direct head-to-head clash history and records between two clubs."""
+    t1_row = query_one("SELECT id, name, logo_url FROM teams WHERE id = %s", (team1,))
+    t2_row = query_one("SELECT id, name, logo_url FROM teams WHERE id = %s", (team2,))
+    if not t1_row or not t2_row:
+        raise HTTPException(404, "One or both teams not found.")
+
+    matches_sql = """
+        SELECT m.id, m.match_date, m.home_goals, m.away_goals, m.result,
+               m.home_team_id, ht.name AS home_team, ht.logo_url AS home_logo,
+               m.away_team_id, at.name AS away_team, at.logo_url AS away_logo,
+               l.name AS league_name, l.code AS league_code
+        FROM matches m
+        JOIN teams ht ON ht.id = m.home_team_id
+        JOIN teams at ON at.id = m.away_team_id
+        JOIN leagues l ON l.id = m.league_id
+        WHERE m.status = 'finished'
+          AND (
+            (m.home_team_id = %(t1)s AND m.away_team_id = %(t2)s)
+            OR (m.home_team_id = %(t2)s AND m.away_team_id = %(t1)s)
+          )
+        ORDER BY m.match_date DESC
+        LIMIT %(limit)s
+    """
+    matches = query(matches_sql, {"t1": team1, "t2": team2, "limit": limit})
+
+    t1_wins = 0
+    t2_wins = 0
+    draws = 0
+    t1_goals = 0
+    t2_goals = 0
+
+    for m in matches:
+        if m["result"] == "D":
+            draws += 1
+        elif (m["home_team_id"] == team1 and m["result"] == "H") or (m["away_team_id"] == team1 and m["result"] == "A"):
+            t1_wins += 1
+        else:
+            t2_wins += 1
+
+        if m["home_team_id"] == team1:
+            t1_goals += int(m["home_goals"] or 0)
+            t2_goals += int(m["away_goals"] or 0)
+        else:
+            t2_goals += int(m["home_goals"] or 0)
+            t1_goals += int(m["away_goals"] or 0)
+
+    return {
+        "team1": t1_row,
+        "team2": t2_row,
+        "total_clashes": len(matches),
+        "team1_wins": t1_wins,
+        "draws": draws,
+        "team2_wins": t2_wins,
+        "team1_goals": t1_goals,
+        "team2_goals": t2_goals,
+        "matches": matches
+    }
+
+
 @router.get("/standings")
 def standings(league: str, season: str):
     rows = query("""SELECT s.position, t.id AS team_id, t.name AS team, t.logo_url, s.played, s.won, s.drawn, s.lost,

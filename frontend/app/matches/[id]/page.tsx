@@ -108,6 +108,72 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </Card>
       </div>
 
+      {/* Head-to-Head (H2H) Clashes */}
+      {p.h2h && (
+        <div className="mt-6">
+          <Card title="Head-to-Head (H2H) History">
+            {p.h2h.total === 0 ? (
+              <p className="text-xs text-muted">
+                No previous direct meetings recorded between these two clubs in current database history.
+              </p>
+            ) : (
+              <div>
+                {/* H2H Win Record Header */}
+                <div className="mb-3 flex items-center justify-between text-xs font-semibold">
+                  <span className="text-pos">{p.home_team} {p.h2h.home_wins}W</span>
+                  <span className="text-muted">{p.h2h.draws} Draws</span>
+                  <span className="text-amber-500">{p.h2h.away_wins}W {p.away_team}</span>
+                </div>
+
+                {/* H2H Proportion Bar */}
+                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-panel2 mb-4">
+                  <div
+                    style={{ width: `${(p.h2h.home_wins / p.h2h.total) * 100}%` }}
+                    className="bg-pos transition-all"
+                    title={`${p.home_team} wins`}
+                  />
+                  <div
+                    style={{ width: `${(p.h2h.draws / p.h2h.total) * 100}%` }}
+                    className="bg-muted/40 transition-all"
+                    title="Draws"
+                  />
+                  <div
+                    style={{ width: `${(p.h2h.away_wins / p.h2h.total) * 100}%` }}
+                    className="bg-amber-500 transition-all"
+                    title={`${p.away_team} wins`}
+                  />
+                </div>
+
+                {/* Past Meetings List */}
+                <div className="space-y-2 divide-y divide-line/40">
+                  {p.h2h.past_matches.map((hm) => (
+                    <div key={hm.id} className="flex items-center justify-between pt-2 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ClubCrest src={hm.home_logo} name={hm.home_team} size="xs" />
+                        <span className={`truncate ${hm.result === "H" ? "font-bold text-ink" : "text-muted"}`}>
+                          {hm.home_team}
+                        </span>
+                      </div>
+
+                      <div className="rounded bg-panel2 px-2 py-0.5 font-mono font-bold text-ink border border-line/50 shrink-0">
+                        {hm.home_goals} : {hm.away_goals}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 min-w-0 text-right">
+                        <span className={`truncate ${hm.result === "A" ? "font-bold text-ink" : "text-muted"}`}>
+                          {hm.away_team}
+                        </span>
+                        <ClubCrest src={hm.away_logo} name={hm.away_team} size="xs" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
       {/* Poisson Scoreline Grid */}
       <div className="mt-6">
         <Card title="Top Poisson Scoreline Probabilities">

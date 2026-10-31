@@ -266,7 +266,7 @@ class ModelService:
             ORDER BY m.match_date DESC
             LIMIT 5
         """
-        h2h_matches = query(h2h_sql, {"hid": hid, "aid": aid})
+        h2h_matches = query(h2h_sql, {"hid": h_id, "aid": a_id})
         h_wins = sum(1 for hm in h2h_matches if (hm["home_team"] == m["home_name"] and hm["result"] == "H") or (hm["away_team"] == m["home_name"] and hm["result"] == "A"))
         a_wins = sum(1 for hm in h2h_matches if (hm["home_team"] == m["away_name"] and hm["result"] == "H") or (hm["away_team"] == m["away_name"] and hm["result"] == "A"))
         draws = sum(1 for hm in h2h_matches if hm["result"] == "D")

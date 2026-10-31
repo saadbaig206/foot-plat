@@ -221,3 +221,4 @@ export default function InteractiveStandings({ standings, leagueName }: Interact
     </div>
   );
 }
+

@@ -179,3 +179,4 @@ export default function MatchFeed({ recent, fixtures }: MatchFeedProps) {
     </div>
   );
 }
+

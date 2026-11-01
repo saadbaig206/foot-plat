@@ -86,6 +86,29 @@ class ModelService:
                     points += 1
         return points
 
+    def _get_team_elo(self, team_id: int) -> float:
+        """Retrieves or dynamically computes a team's rating from latest standings/performance."""
+        row = query_one("SELECT elo FROM elo_ratings WHERE team_id = %s ORDER BY as_of DESC LIMIT 1", (team_id,))
+        if row and row.get("elo"):
+            return float(row["elo"])
+
+        row = query_one("""
+            SELECT played, won, drawn, lost, goals_for, goals_against, points
+            FROM league_standings
+            WHERE team_id = %s
+            ORDER BY last_updated DESC LIMIT 1
+        """, (team_id,))
+        if row and row.get("played", 0) > 0:
+            gp = row["played"]
+            pts = row["points"]
+            gd = row["goals_for"] - row["goals_against"]
+            ppg = pts / gp
+            gd_pg = gd / gp
+            elo = 1500.0 + (ppg - 1.35) * 190.0 + (gd_pg) * 35.0
+            return max(1200.0, min(1950.0, round(elo, 1)))
+
+        return 1500.0
+
     def _estimate_odds_from_elo(self, elo_diff: float) -> tuple[float, float, float]:
         """Fallback when live bookmaker odds are unavailable: calculates Elo-based odds."""
         # Elo expected score with +65 home advantage
@@ -142,9 +165,9 @@ class ModelService:
         h_id = m["home_team_id"]
         a_id = m["away_team_id"]
 
-        # Elo
-        h_elo = m["home_elo"] or 1500.0
-        a_elo = m["away_elo"] or 1500.0
+        # Elo: use match pre-match value if available, else dynamically compute from current season standings
+        h_elo = float(m["home_elo"]) if m.get("home_elo") is not None else self._get_team_elo(h_id)
+        a_elo = float(m["away_elo"]) if m.get("away_elo") is not None else self._get_team_elo(a_id)
         elo_diff = h_elo - a_elo
 
         # Form
@@ -190,12 +213,30 @@ class ModelService:
         # Poisson scoreline grid (7x7)
         grid = np.outer(poisson.pmf(range(7), lh), poisson.pmf(range(7), la))
         grid /= grid.sum()
-        top_indices = np.dstack(np.unravel_index(np.argsort(-grid.ravel())[:5], grid.shape))[0]
 
-        top_scoreline = f"{top_indices[0][0]}-{top_indices[0][1]}"
+        most_likely_outcome = "H" if pH >= max(pD, pA) else ("D" if pD >= pA else "A")
+
+        # Rank all 49 scorelines by joint probability
+        ranked_scorelines = []
+        for i in range(7):
+            for j in range(7):
+                ranked_scorelines.append(((i, j), grid[i, j]))
+        ranked_scorelines.sort(key=lambda x: x[1], reverse=True)
+
+        # Condition the primary predicted scoreline on the predicted outcome
+        if most_likely_outcome == "H":
+            candidates = [x for x in ranked_scorelines if x[0][0] > x[0][1]]
+        elif most_likely_outcome == "A":
+            candidates = [x for x in ranked_scorelines if x[0][0] < x[0][1]]
+        else:
+            candidates = [x for x in ranked_scorelines if x[0][0] == x[0][1]]
+
+        top_choice = candidates[0][0] if candidates else ranked_scorelines[0][0]
+        top_scoreline = f"{top_choice[0]}-{top_choice[1]}"
+
         scoreline_probs = [
-            {"score": f"{i}-{j}", "probability": round(float(grid[i, j]), 4)}
-            for i, j in top_indices
+            {"score": f"{x[0][0]}-{x[0][1]}", "probability": round(float(x[1]), 4)}
+            for x in ranked_scorelines[:5]
         ]
 
         # Favourite avoids defeat

@@ -137,13 +137,13 @@ def test_rankings_api():
         ON CONFLICT DO NOTHING
     """, (pid, lid, sid, tid))
 
-    boot_data = golden_boot()
+    boot_data = golden_boot(limit=100)
     assert len(boot_data) >= 1
     saka_boot = next((r for r in boot_data if r["player_name"] == "Bukayo Saka"), None)
     assert saka_boot is not None
     assert saka_boot["goals"] >= 1
 
-    ballon_data = ballon_dor()
+    ballon_data = ballon_dor(limit=100)
     assert len(ballon_data) >= 1
     saka_ballon = next((r for r in ballon_data if r["player_name"] == "Bukayo Saka"), None)
     assert saka_ballon is not None

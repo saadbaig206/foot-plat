@@ -20,6 +20,26 @@ except ImportError:
 _pool = None
 _backend = None  # 'psycopg', 'psycopg2', or 'sqlite3'
 _last_url = None
+_pg_unreachable = False
+
+
+def _can_reach_host(url: str, timeout: float = 1.0) -> bool:
+    global _pg_unreachable
+    if _pg_unreachable:
+        return False
+    import socket
+    import urllib.parse
+    try:
+        parsed = urllib.parse.urlparse(url)
+        host = parsed.hostname
+        port = parsed.port or 5432
+        if not host:
+            return False
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        _pg_unreachable = True
+        return False
 
 SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS leagues (
@@ -204,17 +224,34 @@ def _init_pool():
         _ensure_sqlite_schema(db_path)
         return
 
+    # Fast-check host reachability before opening heavy connection pools
+    if not _can_reach_host(url, timeout=0.8):
+        logger.warning("Remote PostgreSQL host is unreachable. Falling back directly to local SQLite dev.db.")
+        _backend = "sqlite3"
+        root_dir = Path(__file__).resolve().parent.parent.parent
+        db_path = str(root_dir / "dev.db")
+        _pool = db_path
+        _ensure_sqlite_schema(db_path)
+        return
+
     # Try psycopg (psycopg 3)
     try:
         from psycopg.rows import dict_row
         from psycopg_pool import ConnectionPool
-        _pool = ConnectionPool(url, min_size=1, max_size=5, kwargs={"row_factory": dict_row}, open=True)
+        test_pool = ConnectionPool(url, min_size=1, max_size=5, kwargs={"row_factory": dict_row}, open=True, timeout=3.0)
+        test_pool.wait(timeout=3.0)
+        _pool = test_pool
         _backend = "psycopg"
         return
     except ImportError:
         pass
     except Exception as e:
         logger.warning(f"Could not initialize psycopg3 pool: {e}")
+        try:
+            if 'test_pool' in locals() and hasattr(test_pool, 'close'):
+                test_pool.close()
+        except Exception:
+            pass
 
     # Fall back to psycopg2
     try:
@@ -238,7 +275,8 @@ def _init_pool():
 
     # Fallback to sqlite if postgres is not reachable
     _backend = "sqlite3"
-    db_path = "dev.db"
+    root_dir = Path(__file__).resolve().parent.parent.parent
+    db_path = str(root_dir / "dev.db")
     _pool = db_path
     _ensure_sqlite_schema(db_path)
 
@@ -319,6 +357,7 @@ def _normalize_sql(sql: str, params: Any) -> tuple[str, Any]:
     sql = re.sub(r'\bILIKE\b', 'LIKE', sql)
     # Convert %(name)s to :name for sqlite
     if isinstance(params, dict):
+        params = {k: (v.default if hasattr(v, "default") else v) for k, v in params.items()}
         sql = re.sub(r'%\((\w+)\)s', r':\1', sql)
     elif isinstance(params, (tuple, list)):
         sql = sql.replace("%s", "?")

@@ -46,6 +46,7 @@ export interface League {
 export interface Team {
   id: number;
   name: string;
+  short_name?: string | null;
   country: string | null;
   logo_url: string | null;
 }
@@ -55,6 +56,7 @@ export interface Player {
   name: string;
   nationality: string | null;
   position: string | null;
+  photo_url?: string | null;
 }
 
 export interface ModelStatus {
@@ -77,6 +79,15 @@ export interface LastUpdated {
   player_stats: string | null;
   latest_result_date: string | null;
   last_successful_ingest: string | null;
+}
+
+export interface ConvictionInfo {
+  tier: "high" | "moderate" | "volatile";
+  label: string;
+  badge: string;
+  recommended_pick: string;
+  recommended_market: string;
+  double_chance_prob: number;
 }
 
 export interface PredictionItem {
@@ -112,6 +123,7 @@ export interface PredictionItem {
     draw: number;
     away: number;
   };
+  conviction?: ConvictionInfo;
 }
 
 export interface MatchPredictionDetail {
@@ -134,6 +146,7 @@ export interface MatchPredictionDetail {
   confidence: number;
   bookmaker_favourite: "home" | "away";
   favourite_avoids_defeat_prob: number;
+  conviction?: ConvictionInfo;
   predicted_goals: {
     home: number;
     away: number;

@@ -36,6 +36,7 @@ def team(team_id: int):
 
 def _matches(status_sql: str, league: str | None, team_id: int | None, date_from: date | None,
              date_to: date | None, limit: int, order: str):
+    limit_val = int(limit) if isinstance(limit, (int, str)) else (getattr(limit, "default", 50) or 50)
     return query(f"""
         SELECT m.id, l.code AS league_code, l.name AS league, m.match_date, m.kickoff_utc, m.status,
                m.home_team_id, ht.name AS home_team, ht.logo_url AS home_logo,
@@ -51,7 +52,7 @@ def _matches(status_sql: str, league: str | None, team_id: int | None, date_from
           AND (%(df)s::date IS NULL OR m.match_date >= %(df)s)
           AND (%(dt)s::date IS NULL OR m.match_date <= %(dt)s)
         ORDER BY m.match_date {order}, m.id LIMIT %(limit)s""",
-        {"league": league, "team": team_id, "df": date_from, "dt": date_to, "limit": limit})
+        {"league": league, "team": team_id, "df": date_from, "dt": date_to, "limit": limit_val})
 
 
 @router.get("/fixtures")

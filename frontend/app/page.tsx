@@ -17,8 +17,12 @@ import {
   BarChart3,
   BrainCircuit,
   Calendar,
+  CheckCircle2,
+  Filter,
   Layers,
+  ShieldCheck,
   Sparkles,
+  Target,
   Trophy,
 } from "lucide-react";
 
@@ -44,19 +48,22 @@ const SUPPORTED_LEAGUES = [
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ league?: string; season?: string; tab?: string }>;
+  searchParams?: Promise<{ league?: string; season?: string; tab?: string; tier?: string }>;
 }) {
   const params = await searchParams;
   const currentCode = params?.league ?? "E0";
   const currentSeason = params?.season;
   const activeTab = params?.tab ?? "analytics"; // Default directly to Standings & Form!
+  const currentTier = params?.tier ?? "all";
+
+  const tierQuery = currentTier !== "all" ? `&tier=${currentTier}` : "";
 
   // Concurrent fetch of platform metrics
   const [sumRes, recentRes, fixturesRes, predsRes, analyticsRes] = await Promise.all([
     api<Summary>("/api/stats/summary"),
     api<Match[]>("/api/results?limit=12"),
     api<Match[]>("/api/fixtures?limit=12"),
-    api<PredictionItem[]>("/api/predictions?limit=9"),
+    api<PredictionItem[]>(`/api/predictions?limit=18${tierQuery}`),
     api<AnalyticsDashboardData>(
       `/api/analytics/dashboard?league=${currentCode}${
         currentSeason ? `&season=${encodeURIComponent(currentSeason)}` : ""
@@ -254,18 +261,48 @@ export default async function DashboardPage({
          ======================================================== */}
       {(activeTab === "predictions" || activeTab === "all") && (
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
               <BrainCircuit className="h-4 w-4 text-pos" />
               <h2 className="text-base font-bold text-ink">AI Match Predictions</h2>
+              <span className="text-xs text-muted">· v2 HistGradientBoosting + Poisson</span>
             </div>
-            <span className="text-xs text-muted">Win Chance & Forecast Score</span>
+
+            {/* Conviction Tier Selector for 75-80%+ High Accuracy */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-muted text-[11px] mr-1 hidden sm:inline flex items-center gap-1">
+                <Filter className="h-3 w-3" /> Filter Hit Rate:
+              </span>
+              {[
+                { id: "all", label: "All Forecasts" },
+                { id: "high", label: "🎯 High Conviction (78%–85%)" },
+                { id: "moderate", label: "🛡️ Double Chance (75%–80%)" },
+                { id: "volatile", label: "⚖️ Volatile / 50-50" },
+              ].map((tierOpt) => {
+                const isActive = currentTier === tierOpt.id;
+                return (
+                  <Link
+                    key={tierOpt.id}
+                    href={`/?tab=predictions&league=${currentCode}${
+                      tierOpt.id !== "all" ? `&tier=${tierOpt.id}` : ""
+                    }`}
+                    className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                      isActive
+                        ? "bg-pos text-bg font-bold shadow-xs"
+                        : "bg-panel border border-line text-muted hover:text-ink hover:bg-panel2"
+                    }`}
+                  >
+                    {tierOpt.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           {predictions.length === 0 ? (
             <Card>
-              <EmptyState title="No predictions available">
-                No upcoming matches are scheduled for inference right now.
+              <EmptyState title="No matching predictions found">
+                No upcoming fixtures match the selected conviction tier filter ({currentTier}).
               </EmptyState>
             </Card>
           ) : (
@@ -275,6 +312,7 @@ export default async function DashboardPage({
                 const pD = Math.round((p.probabilities?.draw ?? p.p_draw) * 100);
                 const pA = Math.round((p.probabilities?.away ?? p.p_away) * 100);
                 const isHomeFav = p.favourite_side === "H";
+                const conv = p.conviction;
 
                 return (
                   <div
@@ -283,10 +321,30 @@ export default async function DashboardPage({
                   >
                     <div>
                       {/* Competition & Date */}
-                      <div className="flex items-center justify-between text-[11px] text-muted mb-2.5">
+                      <div className="flex items-center justify-between text-[11px] text-muted mb-2">
                         <span className="font-semibold text-ink">{p.league_name}</span>
                         <span>{fmtDate(p.match_date)}</span>
                       </div>
+
+                      {/* Conviction Tier Badge */}
+                      {conv && (
+                        <div className="mb-2.5">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              conv.tier === "high"
+                                ? "bg-pos/15 text-pos border border-pos/40"
+                                : conv.tier === "moderate"
+                                ? "bg-amber-500/15 text-amber-500 border border-amber-500/40"
+                                : "bg-panel2 text-muted border border-line"
+                            }`}
+                          >
+                            {conv.tier === "high" && <Target className="h-3 w-3" />}
+                            {conv.tier === "moderate" && <ShieldCheck className="h-3 w-3" />}
+                            <span>{conv.badge}</span>
+                            <span className="opacity-70">· {conv.label}</span>
+                          </span>
+                        </div>
+                      )}
 
                       {/* Head-to-Head with Crests */}
                       <div className="my-2 flex items-center justify-between gap-3">
@@ -338,6 +396,14 @@ export default async function DashboardPage({
                           <div style={{ width: `${pA}%` }} className="bg-amber-500 transition-all" />
                         </div>
                       </div>
+
+                      {/* Recommended Pick Box */}
+                      {conv && (
+                        <div className="mt-2.5 rounded-lg bg-panel2/60 border border-line/60 px-2.5 py-1.5 flex items-center justify-between text-[11px]">
+                          <span className="text-muted">Target:</span>
+                          <span className="font-bold text-ink truncate ml-1">{conv.recommended_pick}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Footer link to Match Intelligence & H2H */}

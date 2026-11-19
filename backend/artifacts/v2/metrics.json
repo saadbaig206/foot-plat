@@ -1,0 +1,80 @@
+{
+  "version": "v2",
+  "trained_at": "2026-11-19T17:04:01.681435+00:00",
+  "train_range": "2005-07-29..2023-06-04",
+  "test_range": "2023-08-11..2025-05-25",
+  "n_train": 32765,
+  "n_test": 3504,
+  "features": [
+    "Division_enc",
+    "Month",
+    "HomeElo",
+    "AwayElo",
+    "EloDiff",
+    "AdjFormHome",
+    "AdjFormAway",
+    "AdjFormDiff",
+    "TSRHome",
+    "TSRAway",
+    "TSRDiff",
+    "RestHome",
+    "RestAway",
+    "RestDiff",
+    "OddHome",
+    "OddDraw",
+    "OddAway",
+    "ImpProbHome",
+    "ImpProbDraw",
+    "ImpProbAway",
+    "OddsMargin"
+  ],
+  "metrics": {
+    "outcome_1x2": {
+      "n_test": 3504,
+      "accuracy": 0.5297,
+      "bookmaker_accuracy": 0.5428,
+      "log_loss": 0.9775,
+      "bookmaker_log_loss": 0.9598,
+      "confusion_matrix_A_D_H": [
+        [
+          705,
+          198,
+          210
+        ],
+        [
+          347,
+          233,
+          320
+        ],
+        [
+          282,
+          291,
+          918
+        ]
+      ]
+    },
+    "fav_avoids_defeat": {
+      "n_test": 3504,
+      "roc_auc": 0.6402,
+      "bookmaker_roc_auc": 0.6618,
+      "brier": 0.1539,
+      "bookmaker_brier": 0.1527,
+      "base_rate": 0.8002
+    },
+    "goals_home": {
+      "mae": 0.939
+    },
+    "goals_away": {
+      "mae": 0.854
+    }
+  },
+  "enhancements": [
+    "20-year multi-season dataset (2005 to 2025)",
+    "Dynamic continuous Elo with margin-of-victory scaling",
+    "Elo-weighted opponent-adjusted rolling form",
+    "Total Shot Ratio (TSR) rolling dominance",
+    "Fixture turnaround rest days",
+    "Dixon-Coles bivariate Poisson scoreline correction",
+    "Balanced class weighting with draw-aware optimization"
+  ]
+}

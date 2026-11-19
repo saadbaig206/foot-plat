@@ -45,9 +45,10 @@ export default async function Teams({ searchParams }: PageProps<"/teams">) {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {r.data.map((t) => (
-            <div
+            <Link
               key={t.id}
-              className="flex items-center gap-3 rounded-xl border border-line bg-panel p-3.5 transition-all hover:border-line/80 hover:bg-panel2/60 hover:shadow-xs group"
+              href={`/teams/${t.id}`}
+              className="flex items-center gap-3 rounded-xl border border-line bg-panel p-3.5 transition-all hover:border-pos/50 hover:bg-panel2/80 hover:shadow-sm group cursor-pointer"
             >
               <ClubCrest src={t.logo_url} name={t.name} size="md" className="group-hover:scale-105 transition-transform" />
               <div className="min-w-0 flex-1">
@@ -58,7 +59,7 @@ export default async function Teams({ searchParams }: PageProps<"/teams">) {
                   <span>{t.country ?? "Europe"}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   Activity,
   Award,
+  Calendar,
   Database,
   LayoutDashboard,
   Menu,
@@ -18,6 +19,7 @@ import {
 // Merged Overview + Football Analytics + AI Predictions into unified "Dashboard"
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/matches", label: "Matches", icon: Calendar },
   { href: "/rankings", label: "Rankings & Awards", icon: Award },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/teams", label: "Clubs & Teams", icon: Shirt },

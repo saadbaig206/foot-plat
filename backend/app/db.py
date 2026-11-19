@@ -236,8 +236,19 @@ def _init_pool():
 
     # Try psycopg (psycopg 3)
     try:
+        import os
         from psycopg.rows import dict_row
-        from psycopg_pool import ConnectionPool
+        from psycopg_pool import ConnectionPool, NullConnectionPool
+
+        # In serverless environments (Vercel, AWS Lambda), use NullConnectionPool.
+        # This eliminates background worker threads that fail with 'cannot join current thread' on lambda teardown.
+        is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or os.environ.get("LAMBDA_TASK_ROOT"))
+        if is_serverless:
+            _pool = NullConnectionPool(url, kwargs={"row_factory": dict_row})
+            _backend = "psycopg"
+            logger.info("Initialized serverless NullConnectionPool for PostgreSQL.")
+            return
+
         test_pool = ConnectionPool(url, min_size=1, max_size=5, kwargs={"row_factory": dict_row}, open=True, timeout=3.0)
         test_pool.wait(timeout=3.0)
         _pool = test_pool
@@ -294,13 +305,17 @@ def get_pool():
 def close_pool() -> None:
     global _pool, _backend, _last_url
     if _pool is not None:
-        if _backend == "psycopg" and hasattr(_pool, "close"):
-            _pool.close()
-        elif _backend == "psycopg2" and hasattr(_pool, "closeall"):
-            _pool.closeall()
-        _pool = None
-        _backend = None
-        _last_url = None
+        try:
+            if _backend == "psycopg" and hasattr(_pool, "close"):
+                _pool.close()
+            elif _backend == "psycopg2" and hasattr(_pool, "closeall"):
+                _pool.closeall()
+        except Exception:
+            pass
+        finally:
+            _pool = None
+            _backend = None
+            _last_url = None
 
 
 @contextmanager

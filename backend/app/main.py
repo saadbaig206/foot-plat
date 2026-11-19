@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
-    close_pool()
+    try:
+        close_pool()
+    except Exception:
+        pass
 
 
 app = FastAPI(title="PitchsideIQ API", version="0.2.0", lifespan=lifespan)

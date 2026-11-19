@@ -166,12 +166,28 @@ def player(player_id: int):
     return row
 
 
+import time
+
+_SUMMARY_CACHE = {}
+_SUMMARY_TTL = 60.0
+
+
 @router.get("/stats/summary")
 def stats_summary(season: str | None = None):
     """Headline numbers for the Overview page, computed from stored finished matches."""
-    return query_one("""
+    key = str(season)
+    now = time.time()
+    if key in _SUMMARY_CACHE:
+        val, ts = _SUMMARY_CACHE[key]
+        if now - ts < _SUMMARY_TTL:
+            return val
+
+    res = query_one("""
         SELECT count(*) AS matches, coalesce(sum(home_goals + away_goals), 0) AS goals,
                round(avg(home_goals + away_goals)::numeric, 2) AS goals_per_match,
                count(DISTINCT m.league_id) AS leagues, max(m.match_date) AS latest_result_date
         FROM matches m LEFT JOIN seasons s ON s.id = m.season_id
         WHERE m.status = 'finished' AND (%(s)s::text IS NULL OR s.label = %(s)s)""", {"s": season})
+    if res:
+        _SUMMARY_CACHE[key] = (res, now)
+    return res

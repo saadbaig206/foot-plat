@@ -2,10 +2,14 @@
 Computes comprehensive macro KPIs, outcome distributions, team performance,
 and goal scoring trends directly from the database.
 """
+import time
 from fastapi import APIRouter, Query
 from ..db import query, query_one
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+
+_DASHBOARD_CACHE = {}
+_DASHBOARD_TTL = 45.0  # seconds cache
 
 
 # Mapping support for football-data codes to internal league codes
@@ -23,6 +27,13 @@ def analytics_dashboard(
     # Defensive unwrapping in case called directly as a function
     league_str = league if isinstance(league, str) else (getattr(league, "default", "E0") or "E0")
     season_str = season if (season is None or isinstance(season, str)) else getattr(season, "default", None)
+
+    cache_key = f"{league_str}_{season_str}"
+    now = time.time()
+    if cache_key in _DASHBOARD_CACHE:
+        val, ts = _DASHBOARD_CACHE[cache_key]
+        if now - ts < _DASHBOARD_TTL:
+            return val
 
     # Resolve league by code or alias
     alias = CODE_ALIASES.get(league_str.upper(), league_str)
@@ -200,7 +211,7 @@ def analytics_dashboard(
     """
     scorers = query(scorers_sql, {"lid": lid, "sid": sid})
 
-    return {
+    result = {
         "league": l_row,
         "season": s_label,
         "kpis": kpis,
@@ -208,3 +219,5 @@ def analytics_dashboard(
         "team_performance": perf,
         "top_scorers": scorers
     }
+    _DASHBOARD_CACHE[cache_key] = (result, now)
+    return result

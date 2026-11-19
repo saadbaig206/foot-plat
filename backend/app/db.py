@@ -249,8 +249,8 @@ def _init_pool():
             logger.info("Initialized serverless NullConnectionPool for PostgreSQL.")
             return
 
-        test_pool = ConnectionPool(url, min_size=1, max_size=5, kwargs={"row_factory": dict_row}, open=True, timeout=3.0)
-        test_pool.wait(timeout=3.0)
+        test_pool = ConnectionPool(url, min_size=1, max_size=5, kwargs={"row_factory": dict_row}, open=True, timeout=10.0)
+        test_pool.wait(timeout=10.0)
         _pool = test_pool
         _backend = "psycopg"
         return
